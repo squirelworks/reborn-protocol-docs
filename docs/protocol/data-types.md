@@ -275,11 +275,30 @@ local = world % 64
 `X2/Y2/Z2` use the signed pixel packing above. The NPC equivalents use the same GSHORT
 encoding.
 
-The one-byte player/NPC `X` and `Y` properties are signed half-tile coordinates, not
-ordinary unsigned GCHARs. After removing the +32 wire bias, values `216..255` are
-interpreted as signed 8-bit values (`-40..-1`) before division by two. This is the
-`PropertyTileCoordinate::deserialize` contract
-(`GServer-v2/server/src/utilities/PropertySerializers.cpp:420-429`).
+The one-byte player/NPC `X` and `Y` properties are half-tile coordinates. The real clients
+and the newer GServer-v2 serializer read them differently:
+
+| Wire byte | Real clients (2.05, 2.22, 2.31, live) | GServer-v2 `PropertyTileCoordinate` |
+|---|---|---|
+| `0x00` | dropped; the old value stays | -16 tiles |
+| `0x01`-`0x1F` | -15.5 to -0.5 tiles | -15.5 to -0.5 tiles |
+| `0x0A` | ends the message (newline): this prop and every prop after it are lost | same |
+| `0x20`-`0xF7` | 0 to +107.5 tiles | 0 to +107.5 tiles |
+| `0xF8`-`0xFF` | **+108 to +111.5 tiles** | **-20 to -16.5 tiles** (`uread >= 216` is read as signed) |
+
+- The clients read the byte **unsigned**: `(byte - 32) / 2`. A byte below `0x20` gives a
+  negative value. No byte is read as a signed 8-bit value. Static reads of clients from
+  1.21 to 6.03r7 show the same decode.
+- So the lowest value a server can send is -15.5 tiles, and -11 tiles cannot be sent at all.
+- The older GServer-v2 `TPlayerProps.cpp` reads `readGUChar() / 2`, which matches the
+  clients. The signed rule appears only in the newer serializer
+  (`GServer-v2/server/src/utilities/PropertySerializers.cpp:420-429`).
+- In 2.22 and 2.31 the local player's own x wraps below -10 tiles: -10.5 becomes 245.5.
+- For positions outside -15.5 to +111.5 tiles, use X2/Y2 on clients that parse them.
+
+Source: Graal_analysis
+[`protocol/player-x-half-tile.md`](https://github.com/squirelworks/Graal_analysis/blob/main/protocol/player-x-half-tile.md)
+(live runs of the 2.05, 2.22 and 2.31 clients, and static reads of 1.21 to 6.03r7).
 
 ## Player Property Data Types
 
