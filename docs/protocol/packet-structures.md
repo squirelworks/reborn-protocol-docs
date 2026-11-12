@@ -1545,6 +1545,12 @@ the server as `PLO_ITEMADD`. No client sent `PLI_ITEMADD` for it in the 2.05 cap
 The server writes `pixel / 8` (`server/src/level/Level.cpp:2480`) and `tile * 2` for the
 rollback of a refused drop (`server/src/player/packets/PlayerClientPackets.cpp:354`).
 
+**Original clients**: the 2.05 client removes the item at exactly that point.
+
+`PLO_ITEMADD (22)` as the 2.05 client reads it may also carry an optional `GSHORT` player id
+after the item byte. With it, a dropped sword or shield copies that player's image. Unknown
+item ids are ignored ([`protocol/packet-layouts.md`](https://github.com/squirelworks/Graal_analysis/blob/main/protocol/packet-layouts.md), level-data section).
+
 ### PLO_NPCMOVED (24) - NPC Moved (Level Change)
 **Trigger**: An NPC warps to a different level. The server sends it to **all** players
 (`PLTYPE_ANYPLAYER`), not only to those in the old level.
