@@ -233,12 +233,22 @@ byte after the sender player ID.
 [GUCHAR: tile_y]     // Y position (in half-tiles)
 ```
 
+**Original clients** (1.21 and later): the server re-emits this as `PLO_ITEMDEL (23)` to the
+**other** players on the level only, not back to the sender. This was seen on the wire with
+the 2.05 client ([`protocol/packet-layouts.md`](https://github.com/squirelworks/Graal_analysis/blob/main/protocol/packet-layouts.md), board-change-on-the-wire section).
+
 ### PLI_ITEMTAKE (32) - Pick Up Item
 **Trigger**: Player picks up an item
 ```
 [GUCHAR: tile_x]     // X position (in half-tiles)
 [GUCHAR: tile_y]     // Y position (in half-tiles)
+[GUCHAR: item_id]    // LevelItemType id, as in PLI_ITEMADD (sent by the original clients)
 ```
+
+**Original clients**: the clients that send this id (1.38 and later) append the item id
+after the position, the same three bytes as `PLI_ITEMADD (12)`. A server that reads only
+the position still works, but should not reject the extra byte ([`protocol/packet-layouts.md`](https://github.com/squirelworks/Graal_analysis/blob/main/protocol/packet-layouts.md),
+combat-and-objects section).
 
 ### PLI_CLAIMPKER (14) - Claim Player Kill
 **Trigger**: Player dies and killer claims the kill
@@ -1521,6 +1531,10 @@ There is no player id (`server/src/level/Level.cpp:2390`;
 | 6 | glove1 | 15 | mirrorshield | 24 | spinattack |
 | 7 | bow | 16 | glove2 | | |
 | 8 | bomb | 17 | lizardshield | | |
+
+**Original clients**: after a bush is cut with `bushitems` on, the item that drops comes from
+the server as `PLO_ITEMADD`. No client sent `PLI_ITEMADD` for it in the 2.05 captures
+([`protocol/packet-layouts.md`](https://github.com/squirelworks/Graal_analysis/blob/main/protocol/packet-layouts.md)).
 
 ### PLO_ITEMDEL (23) - Item Removed
 **Trigger**: A player picks up an item or the server destroys one
